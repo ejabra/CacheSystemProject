@@ -1,0 +1,120 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - cachesys
+
+  broker:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: broker
+    restart: always
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - cachesys
+      
+
+  mongo1:
+    image: mongo
+    container_name: mongo1
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./db/db1:/data/db
+    restart: always
+    command: --replSet rs0 --bind_ip_all --port 27017
+    networks:
+      - cachesys
+
+  mongo2:
+    image: mongo
+    container_name: mongo2
+    ports:
+      - "27018:27018"
+    volumes:
+      - ./db/db2:/data/db
+    restart: always
+    command: --replSet rs0 --bind_ip_all --port 27018
+    networks:
+      - cachesys
+  mongo3:
+    image: mongo
+    container_name: mongo3
+    ports:
+      - "27019:27019"
+    volumes:
+      - ./db/db3:/data/db
+    restart: always
+    command: --replSet rs0 --bind_ip_all --port 27019
+    networks:
+      - cachesys
+      
+
+  mysql:
+    image: mysql
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'cachesystem'
+      MYSQL_USER: 'youness'
+      MYSQL_PASSWORD: 'doronbola'
+      MYSQL_ROOT_PASSWORD: 'Bgj5WL#F8Ztaz'
+    ports:
+      - "3306:3306"
+    expose:
+      - '3306'
+    volumes:
+      - ./data:/var/lib/mysql
+    networks:
+      - cachesys
+
+  nifi:
+    container_name: nifi
+    image: 'apache/nifi:1.20.0'
+    ports:
+      - 9443:9443
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=ctsBtRBKHRAx69EqUghvvgEvjnaLjFEB
+      - NIFI_WEB_HTTPS_PORT=9443
+    restart: on-failure
+    volumes:
+      - ./nifi/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./nifi/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./nifi/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./nifi/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./nifi/state:/opt/nifi/nifi-current/state
+      - ./nifi/logs:/opt/nifi/nifi-current/logs
+      #- ./nifi/conf:/opt/nifi/nifi-current/conf
+    networks:
+      - cachesys
+
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes: 
+      - ./cache:/data
+    networks:
+      - cachesys
+
+networks:
+  cachesys:
+    driver: bridge
